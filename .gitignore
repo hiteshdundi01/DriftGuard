@@ -1,0 +1,24 @@
+# DriftGuard Build Artifacts
+/target/
+
+# Environment files (contain API keys)
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Dashboard
+dashboard/node_modules/
+dashboard/dist/
+dashboard/.env

@@ -1,0 +1,46 @@
+# DriftGuard Configuration
+# Stigmergic Swarm Intelligence Parameters
+
+[pheromones]
+# Decay rates control how quickly signals "evaporate"
+# Higher value = faster decay (shorter signal lifetime)
+# Half-life ≈ 0.693 / decay_rate seconds
+
+price_freshness_decay = 0.3       # ~2.3 second half-life
+rebalance_opportunity_decay = 0.2 # ~3.5 second half-life  
+execution_permit_decay = 0.5      # ~1.4 second half-life
+trade_executed_decay = 0.1        # ~7 second half-life (audit trail)
+
+[thresholds]
+# Minimum pheromone intensity for agent activation
+price_freshness = 0.7
+rebalance_opportunity = 0.6
+execution_permit = 0.5
+trade_executed = 0.3
+
+[portfolio]
+# Default target allocation (percentages must sum to 100)
+stocks_symbol = "SPY"
+bonds_symbol = "BND"
+default_stocks_pct = 60
+default_bonds_pct = 40
+
+# Drift threshold - trigger rebalance if allocation deviates by this %
+drift_threshold = 5.0
+
+# Initial simulated portfolio balance
+initial_balance = 100000.0
+
+[market]
+# Polling interval in milliseconds (respect API rate limits)
+# Alpha Vantage free tier: 25 requests/day = ~1 request per 58 minutes
+# For demo, we'll cache and simulate between real fetches
+poll_interval_ms = 5000
+
+# VIX threshold - halt trading if volatility exceeds this
+vix_high_threshold = 25.0
+vix_low_threshold = 15.0
+
+[agent]
+# Agent loop sleep duration in milliseconds
+sniff_interval_ms = 500
