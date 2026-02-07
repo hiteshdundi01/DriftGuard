@@ -7,7 +7,7 @@
   line-height: 1.5;
   font-weight: 400;
   color: #e4e4e7;
-  background-color: #0a0a0f;
+  background-color: #050508;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -19,8 +19,22 @@ body {
   min-height: 100vh;
 }
 
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Outfit', sans-serif;
+}
+
 code, .mono {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Space Grotesk', monospace;
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-swarm-card/40 backdrop-blur-md border border-white/5 shadow-xl;
+  }
+  
+  .glass-button {
+    @apply bg-white/5 hover:bg-white/10 border border-white/5 transition-all duration-200 backdrop-blur-sm;
+  }
 }
 
 /* Pheromone intensity bar animation */
@@ -57,21 +71,21 @@ code, .mono {
   background-image: 
     linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 40px 40px;
+  background-size: 50px 50px;
 }
 
 /* Scrollbar styling */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #12121a;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
   background: #2a2a3a;
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {

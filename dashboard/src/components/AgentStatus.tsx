@@ -60,84 +60,66 @@ export function AgentStatus({ pheromones, agentMetrics }: Props) {
     const getMetric = (name: string) => agentMetrics.find(m => m.name === name)
 
     return (
-        <div className="bg-swarm-card rounded-xl border border-swarm-border p-6">
-            <h2 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-                🐝 Agent Swarm
-            </h2>
+        <div className="space-y-3">
+            {agents.map((agent, index) => {
+                const active = isActive(agent.name, agent.listenTo)
+                const metric = getMetric(agent.name)
 
-            <div className="space-y-3">
-                {agents.map((agent, index) => {
-                    const active = isActive(agent.name, agent.listenTo)
-                    const metric = getMetric(agent.name)
+                return (
+                    <motion.div
+                        key={agent.name}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className={`group flex items-center gap-4 p-3 rounded-xl border transition-all duration-300 relative overflow-hidden ${active
+                            ? 'bg-drift-900/10 border-drift-500/20'
+                            : 'bg-white/5 border-white/5'
+                            }`}
+                    >
+                        {/* Active Glow Background */}
+                        {active && (
+                            <motion.div
+                                layoutId={`glow-${agent.name}`}
+                                className="absolute inset-0 bg-drift-500/5 blur-xl" // Soften the glow
+                            />
+                        )}
 
-                    return (
-                        <motion.div
-                            key={agent.name}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.1 }}
-                            className={`flex items-center gap-4 p-4 rounded-lg border transition-all duration-300 ${active
-                                ? 'bg-drift-900/30 border-drift-700/50'
-                                : 'bg-zinc-900/30 border-zinc-800/50'
-                                }`}
-                        >
-                            {/* Agent icon */}
-                            <div className={`p-2 rounded-lg ${active ? 'bg-drift-600/20 text-drift-400' : 'bg-zinc-800 text-zinc-500'
-                                }`}>
-                                {agent.icon}
+                        {/* Agent icon */}
+                        <div className={`relative p-2 rounded-lg transition-colors ${active ? 'bg-drift-500/20 text-drift-400' : 'bg-white/5 text-swarm-muted'
+                            }`}>
+                            {agent.icon}
+                        </div>
+
+                        {/* Agent info */}
+                        <div className="relative flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                                <span className="font-display font-medium text-white tracking-wide">{agent.name}</span>
+                                {active && (
+                                    <span className="flex h-2 w-2 relative">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-drift-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-drift-500"></span>
+                                    </span>
+                                )}
                             </div>
-
-                            {/* Agent info */}
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                    <span className="font-medium text-white">{agent.name}</span>
-                                    {active && (
-                                        <motion.span
-                                            initial={{ scale: 0 }}
-                                            animate={{ scale: 1 }}
-                                            className="px-2 py-0.5 text-xs bg-drift-600/20 text-drift-400 rounded-full"
-                                        >
-                                            ACTIVE
-                                        </motion.span>
-                                    )}
-                                    {metric && metric.action_count > 0 && (
-                                        <span className="px-2 py-0.5 text-xs bg-zinc-800 text-zinc-400 rounded-full">
-                                            ×{metric.action_count}
-                                        </span>
-                                    )}
-                                </div>
-                                <p className="text-sm text-zinc-500 truncate">
-                                    {metric?.last_action || agent.description}
-                                </p>
+                            <div className="flex items-center gap-2 text-xs">
+                                <span className="text-swarm-muted truncate max-w-[120px]">
+                                    {agent.description}
+                                </span>
+                                {metric && metric.action_count > 0 && (
+                                    <span className="px-1.5 py-0.5 bg-white/5 text-drift-300 rounded text-[10px] font-mono border border-white/5">
+                                        OPs: {metric.action_count}
+                                    </span>
+                                )}
                             </div>
+                        </div>
 
-                            {/* Status indicator */}
-                            <div className="flex items-center gap-2">
-                                <div className={`w-2 h-2 rounded-full ${active ? 'bg-drift-400 animate-pulse' : 'bg-zinc-600'
-                                    }`} />
-                            </div>
-                        </motion.div>
-                    )
-                })}
-            </div>
-
-            {/* Signal flow visualization */}
-            <div className="mt-6 pt-4 border-t border-swarm-border">
-                <div className="flex items-center justify-center gap-2 text-xs text-zinc-500">
-                    <span>API</span>
-                    <span className="text-drift-400">→</span>
-                    <span>Sensor</span>
-                    <span className="text-drift-400">→</span>
-                    <span>Analyst</span>
-                    <span className="text-drift-400">→</span>
-                    <span>Guardian</span>
-                    <span className="text-drift-400">→</span>
-                    <span>Trader</span>
-                </div>
-                <p className="text-center text-xs text-zinc-600 mt-2">
-                    Stigmergic signal chain
-                </p>
-            </div>
+                        {/* Status (Pulse) */}
+                        <div className="relative">
+                            <div className={`w-1.5 h-1.5 rounded-full ${active ? 'bg-drift-400 shadow-[0_0_8px_rgba(74,222,128,0.6)]' : 'bg-swarm-border'}`} />
+                        </div>
+                    </motion.div>
+                )
+            })}
         </div>
     )
 }

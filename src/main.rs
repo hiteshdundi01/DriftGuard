@@ -109,23 +109,27 @@ async fn main() -> Result<()> {
     
     // Start all agents concurrently
     let sensor_board = board.clone();
+    let sensor_clone = sensor.clone();
     let sensor_handle = tokio::spawn(async move {
-        sensor.run(sensor_board).await
+        sensor_clone.run(sensor_board).await
     });
     
     let analyst_board = board.clone();
+    let analyst_clone = analyst.clone();
     let analyst_handle = tokio::spawn(async move {
-        analyst.run(analyst_board).await
+        analyst_clone.run(analyst_board).await
     });
     
     let guardian_board = board.clone();
+    let guardian_clone = guardian.clone();
     let guardian_handle = tokio::spawn(async move {
-        guardian.run(guardian_board).await
+        guardian_clone.run(guardian_board).await
     });
     
     let trader_board = board.clone();
+    let trader_clone = trader.clone();
     let trader_handle = tokio::spawn(async move {
-        trader.run(trader_board).await
+        trader_clone.run(trader_board).await
     });
     
     info!("================================================");

@@ -283,8 +283,8 @@ impl Blackboard {
         conn.lpush::<_, _, ()>("trade_log", &serialized).await?;
         
         // Trim to max entries
-        let max = self.config.trade_log.max_entries as i64;
-        conn.ltrim::<_, ()>("trade_log", 0, max - 1).await?;
+        let max = self.config.trade_log.max_entries as isize;
+        conn.ltrim::<_, ()>("trade_log", 0_isize, max - 1).await?;
         
         debug!("📝 Trade logged: {} {} {}", entry.action, entry.symbol, entry.amount);
         Ok(())
@@ -293,7 +293,7 @@ impl Blackboard {
     /// Get trade history (most recent first)
     pub async fn get_trade_history(&self, count: usize) -> Result<Vec<TradeLogEntry>> {
         let mut conn = self.redis.clone();
-        let raw: Vec<String> = conn.lrange("trade_log", 0, count as i64 - 1).await?;
+        let raw: Vec<String> = conn.lrange("trade_log", 0_isize, (count as isize) - 1).await?;
         
         let mut trades = Vec::new();
         for entry in raw {

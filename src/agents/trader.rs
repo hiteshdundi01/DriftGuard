@@ -138,8 +138,8 @@ impl Agent for TraderAgent {
                                 self.config.portfolio.bonds_symbol.clone()
                             },
                             amount: record.stocks_delta.abs(),
-                            price: record.stocks_before / 100.0, // approximate per-share
-                            portfolio_value: record.stocks_after + record.bonds_after,
+                            price: record.before_state.stocks_value / 100.0, // approximate per-share
+                            portfolio_value: record.after_state.stocks_value + record.after_state.bonds_value,
                             drift_before: exec_permit.drift_analysis.drift_pct,
                             drift_after: 0.0, // Will improve when multi-asset is connected
                         };

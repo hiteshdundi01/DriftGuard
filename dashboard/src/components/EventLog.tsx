@@ -1,5 +1,4 @@
 import { motion } from 'framer-motion'
-import { Activity } from 'lucide-react'
 import type { SwarmEvent } from '../hooks/useWebSocket'
 
 interface Props {
@@ -14,36 +13,31 @@ const eventColors: Record<string, string> = {
 
 export function EventLog({ events }: Props) {
     return (
-        <div className="bg-swarm-card rounded-xl border border-swarm-border p-6 h-full">
-            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-drift-400" />
-                Event Log
-            </h2>
-
-            <div className="space-y-2 max-h-80 overflow-y-auto pr-2">
+        <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-1">
                 {events.length === 0 ? (
-                    <div className="text-zinc-500 text-center py-4 text-sm">
-                        No events yet...
+                    <div className="text-swarm-muted text-center py-4 text-xs font-mono">
+                        // NO EVENTS DETECTED
                     </div>
                 ) : (
-                    events.map((event, index) => (
+                    events.map((event) => (
                         <motion.div
                             key={event.id}
-                            initial={{ opacity: 0, x: -20 }}
+                            initial={{ opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.02 }}
-                            className="flex items-center gap-3 text-sm py-2 border-b border-swarm-border/50"
+                            transition={{ delay: 0.05 }} // Faster transition
+                            className="flex items-center gap-3 text-xs py-2 border-b border-white/5 font-mono hover:bg-white/5 transition-colors px-2 rounded"
                         >
-                            <span className="text-xs text-zinc-600 font-mono w-16">
-                                {event.timestamp.toLocaleTimeString()}
+                            <span className="text-swarm-muted w-14 shrink-0">
+                                {event.timestamp.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                             </span>
-                            <span className={`font-medium ${eventColors[event.type] || 'text-zinc-400'}`}>
-                                {event.type}
+                            <span className={`font-bold w-20 shrink-0 ${eventColors[event.type] || 'text-zinc-400'}`}>
+                                {event.type.toUpperCase()}
                             </span>
-                            <span className="text-zinc-400 truncate flex-1">
+                            <span className="text-zinc-300 truncate flex-1">
                                 {event.pheromone}
                             </span>
-                            <span className="text-zinc-500 font-mono text-xs">
+                            <span className="text-swarm-muted">
                                 {(event.intensity * 100).toFixed(0)}%
                             </span>
                         </motion.div>

@@ -218,6 +218,7 @@ dependencies = [
  "chrono",
  "dotenv",
  "futures",
+ "rand",
  "redis",
  "reqwest",
  "serde",

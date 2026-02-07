@@ -19,15 +19,20 @@ export default {
                     700: '#15803d',
                     800: '#166534',
                     900: '#14532d',
+                    950: '#052e16',
                 },
                 'swarm': {
-                    bg: '#0a0a0f',
-                    card: '#12121a',
+                    bg: '#050508', // Deep space black
+                    card: '#0a0a12', // Slightly lighter space
                     border: '#1f1f2e',
-                    accent: '#22c55e',
-                    warning: '#f59e0b',
-                    danger: '#ef4444',
+                    text: '#e4e4e7',
+                    muted: '#a1a1aa',
                 }
+            },
+            fontFamily: {
+                sans: ['Inter', 'sans-serif'],
+                display: ['Outfit', 'sans-serif'],
+                mono: ['Space Grotesk', 'monospace'],
             },
             animation: {
                 'pulse-glow': 'pulse-glow 2s ease-in-out infinite',

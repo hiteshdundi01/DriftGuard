@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { History, TrendingUp, TrendingDown } from 'lucide-react'
+import { TrendingUp, TrendingDown } from 'lucide-react'
 import type { TradeLogEntry } from '../hooks/useWebSocket'
 
 interface Props {
@@ -8,23 +8,13 @@ interface Props {
 
 export function TradeHistory({ trades }: Props) {
     return (
-        <div className="bg-swarm-card rounded-xl border border-swarm-border p-6">
-            <div className="flex items-center gap-3 mb-4">
-                <History className="w-5 h-5 text-drift-400" />
-                <h2 className="text-lg font-semibold text-white">Trade History</h2>
-                {trades.length > 0 && (
-                    <span className="px-2 py-0.5 text-xs bg-zinc-800 text-zinc-400 rounded-full">
-                        {trades.length}
-                    </span>
-                )}
-            </div>
-
+        <div className="h-full">
             {trades.length === 0 ? (
-                <div className="text-zinc-500 text-center py-8 text-sm">
-                    No trades executed yet
+                <div className="text-swarm-muted text-center py-8 text-sm font-mono border-2 border-dashed border-white/5 rounded-xl">
+                    // AWAITING EXECUTION
                 </div>
             ) : (
-                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
                     {trades.map((trade, index) => {
                         const isBuy = trade.action.toLowerCase().includes('buy')
                         return (
@@ -33,35 +23,35 @@ export function TradeHistory({ trades }: Props) {
                                 initial={{ opacity: 0, y: -10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: index * 0.03 }}
-                                className="flex items-center gap-3 p-3 rounded-lg bg-zinc-900/50 border border-zinc-800/50"
+                                className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors"
                             >
-                                <div className={`p-1.5 rounded ${isBuy ? 'bg-green-900/30' : 'bg-red-900/30'}`}>
+                                <div className={`p-2 rounded-lg ${isBuy ? 'bg-drift-500/10 text-drift-400' : 'bg-red-500/10 text-red-400'}`}>
                                     {isBuy ? (
-                                        <TrendingUp className="w-4 h-4 text-green-400" />
+                                        <TrendingUp className="w-4 h-4" />
                                     ) : (
-                                        <TrendingDown className="w-4 h-4 text-red-400" />
+                                        <TrendingDown className="w-4 h-4" />
                                     )}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2">
-                                        <span className={`text-sm font-medium ${isBuy ? 'text-green-400' : 'text-red-400'}`}>
+                                        <span className={`text-sm font-display font-medium ${isBuy ? 'text-drift-400' : 'text-red-400'}`}>
                                             {trade.action}
                                         </span>
-                                        <span className="text-xs text-zinc-500">
+                                        <span className="text-xs font-mono text-swarm-muted px-1.5 py-0.5 rounded bg-white/5">
                                             {trade.symbol}
                                         </span>
                                     </div>
-                                    <div className="flex items-center gap-3 text-xs text-zinc-500">
+                                    <div className="flex items-center gap-3 text-xs text-swarm-muted mt-0.5 font-mono">
                                         <span>${trade.amount.toFixed(2)}</span>
-                                        <span>Drift: {trade.drift_before.toFixed(1)}%</span>
-                                        <span className="text-zinc-600">
-                                            {new Date(trade.timestamp).toLocaleTimeString()}
-                                        </span>
+                                        <span>Δ {trade.drift_before.toFixed(2)}%</span>
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <span className="text-sm font-mono text-zinc-300">
+                                    <span className="text-sm font-mono text-zinc-300 block">
                                         ${trade.portfolio_value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                    </span>
+                                    <span className="text-[10px] text-swarm-muted">
+                                        {new Date(trade.timestamp).toLocaleTimeString()}
                                     </span>
                                 </div>
                             </motion.div>
