@@ -1,13 +1,15 @@
 import { useWebSocket } from './hooks/useWebSocket'
+import { useState } from 'react'
 import { DashboardLayout } from './components/layout/DashboardLayout'
 import { MetricCard } from './components/layout/MetricCard'
 import { PheromoneMonitor } from './components/PheromoneMonitor'
 import { AgentStatus } from './components/AgentStatus'
 import { ControlPanel } from './components/controls/ControlPanel'
 import { PortfolioBalance } from './components/PortfolioBalance'
+import { DriftChart } from './components/DriftChart'
 import { EventLog } from './components/EventLog'
 import { TradeHistory } from './components/TradeHistory'
-import { Activity, Wallet, Cpu, History } from 'lucide-react'
+import { Activity, Wallet, Cpu, History, Crosshair } from 'lucide-react'
 
 function App() {
     const {
@@ -23,11 +25,18 @@ function App() {
 
     } = useWebSocket()
 
+    const [targetStocksPct, setTargetStocksPct] = useState(60)
+
+    const handleSetAllocation = (stocksPct: number, bondsPct: number) => {
+        setTargetStocksPct(stocksPct)
+        setAllocation(stocksPct, bondsPct)
+    }
+
     // Sidebar content (Control Panel)
     const sidebar = (
         <ControlPanel
             stocksPct={portfolio?.stocks_pct ?? 60}
-            onSetAllocation={setAllocation}
+            onSetAllocation={handleSetAllocation}
             onReset={reset}
         />
     )
@@ -56,6 +65,14 @@ function App() {
 
                     <MetricCard title="Trade History" icon={<History className="w-5 h-5" />}>
                         <TradeHistory trades={tradeHistory} />
+                    </MetricCard>
+
+                    <MetricCard title="Drift Analysis" icon={<Crosshair className="w-5 h-5" />}>
+                        <DriftChart
+                            currentStocksPct={portfolio?.stocks_pct ?? 60}
+                            currentBondsPct={portfolio?.bonds_pct ?? 40}
+                            targetStocksPct={targetStocksPct}
+                        />
                     </MetricCard>
                 </div>
 
