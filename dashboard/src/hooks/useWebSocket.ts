@@ -31,7 +31,32 @@ export interface SwarmEvent {
     timestamp: Date
 }
 
-const WS_URL = 'ws://localhost:8080/ws'
+export interface AgentMetric {
+    name: string
+    is_active: boolean
+    action_count: number
+    last_action: string
+    last_action_time: string | null
+}
+
+export interface PheromoneHistory {
+    name: string
+    readings: number[]
+}
+
+export interface TradeLogEntry {
+    id: string
+    timestamp: string
+    action: string
+    symbol: string
+    amount: number
+    price: number
+    portfolio_value: number
+    drift_before: number
+    drift_after: number
+}
+
+const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8080/ws'
 
 export function useWebSocket() {
     const [state, setState] = useState<SwarmState>({
@@ -40,6 +65,10 @@ export function useWebSocket() {
         connected: false,
         events: [],
     })
+
+    const [agentMetrics, setAgentMetrics] = useState<AgentMetric[]>([])
+    const [pheromoneHistory, setPheromoneHistory] = useState<Map<string, number[]>>(new Map())
+    const [tradeHistory, setTradeHistory] = useState<TradeLogEntry[]>([])
 
     const wsRef = useRef<WebSocket | null>(null)
     const reconnectTimeoutRef = useRef<number | null>(null)
@@ -75,11 +104,24 @@ export function useWebSocket() {
                         ...prev,
                         pheromones: data.pheromones,
                     }))
+                    // Track pheromone history for sparklines
+                    setPheromoneHistory(prev => {
+                        const next = new Map(prev)
+                        for (const p of data.pheromones as PheromoneStatus[]) {
+                            const history = next.get(p.name) || []
+                            next.set(p.name, [...history.slice(-19), p.intensity])
+                        }
+                        return next
+                    })
                 } else if (data.type === 'portfolio_update') {
                     setState(prev => ({
                         ...prev,
                         portfolio: data.portfolio,
                     }))
+                } else if (data.type === 'agent_metrics') {
+                    setAgentMetrics(data.agents)
+                } else if (data.type === 'trade_history') {
+                    setTradeHistory(data.trades)
                 } else if (data.type === 'event') {
                     const newEvent: SwarmEvent = {
                         id: crypto.randomUUID(),
@@ -129,6 +171,9 @@ export function useWebSocket() {
 
     return {
         ...state,
+        agentMetrics,
+        pheromoneHistory: Array.from(pheromoneHistory.entries()).map(([name, readings]) => ({ name, readings })),
+        tradeHistory,
         setAllocation,
         reset,
         reconnect: connect,

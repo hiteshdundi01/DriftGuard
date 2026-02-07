@@ -12,7 +12,7 @@ use tracing::{error, info};
 use warp::ws::{Message, WebSocket};
 use warp::Filter;
 
-use crate::core::blackboard::{PheromoneEvent, PortfolioState, TargetAllocation};
+use crate::core::blackboard::{AgentMetrics, PheromoneEvent, PortfolioState, TargetAllocation, TradeLogEntry};
 use crate::core::physics::PheromoneType;
 use crate::core::Blackboard;
 
@@ -33,6 +33,14 @@ pub enum DashboardMessage {
         event_type: String,
         pheromone: String,
         intensity: f64,
+    },
+    #[serde(rename = "agent_metrics")]
+    AgentMetricsUpdate {
+        agents: Vec<AgentMetrics>,
+    },
+    #[serde(rename = "trade_history")]
+    TradeHistory {
+        trades: Vec<TradeLogEntry>,
     },
 }
 
@@ -163,6 +171,30 @@ async fn handle_websocket(ws: WebSocket, board: Arc<Blackboard>) {
                             }
                         }
                     }
+                    
+                    // Send agent metrics
+                    if let Ok(agents) = board.get_all_agent_metrics().await {
+                        if !agents.is_empty() {
+                            let msg = DashboardMessage::AgentMetricsUpdate { agents };
+                            if let Ok(json) = serde_json::to_string(&msg) {
+                                if tx.send(Message::text(json)).await.is_err() {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Send trade history
+                    if let Ok(trades) = board.get_trade_history(20).await {
+                        if !trades.is_empty() {
+                            let msg = DashboardMessage::TradeHistory { trades };
+                            if let Ok(json) = serde_json::to_string(&msg) {
+                                if tx.send(Message::text(json)).await.is_err() {
+                                    break;
+                                }
+                            }
+                        }
+                    }
                 }
                 
                 event = event_rx.recv() => {
@@ -194,17 +226,11 @@ async fn handle_websocket(ws: WebSocket, board: Arc<Blackboard>) {
 
 /// Get current pheromone status for all types
 async fn get_pheromone_status(board: &Blackboard) -> Result<Vec<PheromoneStatus>> {
-    let types = [
-        (PheromoneType::PriceFreshness, 0.7),
-        (PheromoneType::RebalanceOpportunity, 0.6),
-        (PheromoneType::ExecutionPermit, 0.5),
-        (PheromoneType::TradeExecuted, 0.3),
-    ];
-    
     let mut statuses = Vec::new();
     
-    for (ptype, threshold) in types {
+    for ptype in PheromoneType::ALL {
         let intensity = board.get_intensity(ptype).await?;
+        let threshold = ptype.threshold(board.config());
         statuses.push(PheromoneStatus {
             name: ptype.label().to_string(),
             intensity,

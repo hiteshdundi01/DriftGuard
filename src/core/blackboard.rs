@@ -67,6 +67,11 @@ impl Blackboard {
         })
     }
     
+    /// Get a reference to the configuration
+    pub fn config(&self) -> &Config {
+        &self.config
+    }
+    
     /// Deposit a pheromone with associated data
     /// 
     /// Agents call this to signal information to other agents
@@ -75,12 +80,7 @@ impl Blackboard {
         pheromone_type: PheromoneType,
         data: T,
     ) -> Result<()> {
-        let decay_rate = match pheromone_type {
-            PheromoneType::PriceFreshness => self.config.pheromones.price_freshness_decay,
-            PheromoneType::RebalanceOpportunity => self.config.pheromones.rebalance_opportunity_decay,
-            PheromoneType::ExecutionPermit => self.config.pheromones.execution_permit_decay,
-            PheromoneType::TradeExecuted => self.config.pheromones.trade_executed_decay,
-        };
+        let decay_rate = pheromone_type.decay_rate(&self.config);
         
         let pheromone = Pheromone::with_decay(pheromone_type.label(), decay_rate);
         let payload = PheromonePayload::new(data, pheromone.clone());
@@ -116,12 +116,7 @@ impl Blackboard {
         &self,
         pheromone_type: PheromoneType,
     ) -> Result<Option<T>> {
-        let threshold = match pheromone_type {
-            PheromoneType::PriceFreshness => self.config.thresholds.price_freshness,
-            PheromoneType::RebalanceOpportunity => self.config.thresholds.rebalance_opportunity,
-            PheromoneType::ExecutionPermit => self.config.thresholds.execution_permit,
-            PheromoneType::TradeExecuted => self.config.thresholds.trade_executed,
-        };
+        let threshold = pheromone_type.threshold(&self.config);
         
         let mut conn = self.redis.clone();
         let raw: Option<String> = conn.get(pheromone_type.key()).await?;
@@ -183,15 +178,8 @@ impl Blackboard {
     
     /// Get all pheromone intensities (for dashboard)
     pub async fn get_all_intensities(&self) -> Result<Vec<(String, f64)>> {
-        let types = [
-            PheromoneType::PriceFreshness,
-            PheromoneType::RebalanceOpportunity,
-            PheromoneType::ExecutionPermit,
-            PheromoneType::TradeExecuted,
-        ];
-        
         let mut result = Vec::new();
-        for ptype in types {
+        for ptype in PheromoneType::ALL {
             let intensity = self.get_intensity(ptype).await?;
             result.push((ptype.label().to_string(), intensity));
         }
@@ -250,19 +238,71 @@ impl Blackboard {
     /// Clear all pheromones (for testing/reset)
     pub async fn clear_all(&self) -> Result<()> {
         let mut conn = self.redis.clone();
-        let types = [
-            PheromoneType::PriceFreshness,
-            PheromoneType::RebalanceOpportunity,
-            PheromoneType::ExecutionPermit,
-            PheromoneType::TradeExecuted,
-        ];
-        
-        for ptype in types {
+        for ptype in PheromoneType::ALL {
             conn.del::<_, ()>(ptype.key()).await?;
         }
         
         warn!("🧹 All pheromones cleared");
         Ok(())
+    }
+    
+    /// Store agent metrics
+    pub async fn set_agent_metrics(&self, metrics: &AgentMetrics) -> Result<()> {
+        let mut conn = self.redis.clone();
+        let key = format!("agent:{}", metrics.name.to_lowercase());
+        let serialized = serde_json::to_string(metrics)?;
+        conn.set::<_, _, ()>(&key, &serialized).await?;
+        Ok(())
+    }
+    
+    /// Get all agent metrics
+    pub async fn get_all_agent_metrics(&self) -> Result<Vec<AgentMetrics>> {
+        let mut conn = self.redis.clone();
+        let agent_names = ["sensor", "analyst", "guardian", "trader"];
+        let mut metrics = Vec::new();
+        
+        for name in agent_names {
+            let key = format!("agent:{}", name);
+            let raw: Option<String> = conn.get(&key).await?;
+            if let Some(serialized) = raw {
+                if let Ok(m) = serde_json::from_str::<AgentMetrics>(&serialized) {
+                    metrics.push(m);
+                }
+            }
+        }
+        
+        Ok(metrics)
+    }
+    
+    /// Log a trade to persistent history (FIFO, capped at max_entries)
+    pub async fn log_trade(&self, entry: &TradeLogEntry) -> Result<()> {
+        let mut conn = self.redis.clone();
+        let serialized = serde_json::to_string(entry)?;
+        
+        // Push to the front of the list
+        conn.lpush::<_, _, ()>("trade_log", &serialized).await?;
+        
+        // Trim to max entries
+        let max = self.config.trade_log.max_entries as i64;
+        conn.ltrim::<_, ()>("trade_log", 0, max - 1).await?;
+        
+        debug!("📝 Trade logged: {} {} {}", entry.action, entry.symbol, entry.amount);
+        Ok(())
+    }
+    
+    /// Get trade history (most recent first)
+    pub async fn get_trade_history(&self, count: usize) -> Result<Vec<TradeLogEntry>> {
+        let mut conn = self.redis.clone();
+        let raw: Vec<String> = conn.lrange("trade_log", 0, count as i64 - 1).await?;
+        
+        let mut trades = Vec::new();
+        for entry in raw {
+            if let Ok(trade) = serde_json::from_str::<TradeLogEntry>(&entry) {
+                trades.push(trade);
+            }
+        }
+        
+        Ok(trades)
     }
 }
 
@@ -282,6 +322,30 @@ pub struct PortfolioState {
 pub struct TargetAllocation {
     pub stocks_pct: f64,
     pub bonds_pct: f64,
+}
+
+/// Agent metrics for dashboard display
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
+pub struct AgentMetrics {
+    pub name: String,
+    pub is_active: bool,
+    pub action_count: u64,
+    pub last_action: String,
+    pub last_action_time: Option<String>,
+}
+
+/// Persistent trade log entry
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
+pub struct TradeLogEntry {
+    pub id: String,
+    pub timestamp: String,
+    pub action: String,
+    pub symbol: String,
+    pub amount: f64,
+    pub price: f64,
+    pub portfolio_value: f64,
+    pub drift_before: f64,
+    pub drift_after: f64,
 }
 
 impl Default for PortfolioState {

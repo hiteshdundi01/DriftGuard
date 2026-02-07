@@ -10,11 +10,11 @@ use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::time::{interval, Duration};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 use crate::agents::guardian::ExecutionPermit;
 use crate::agents::Agent;
-use crate::core::blackboard::PortfolioState;
+use crate::core::blackboard::{AgentMetrics, PortfolioState, TradeLogEntry};
 use crate::core::physics::PheromoneType;
 use crate::core::{Blackboard, Config};
 
@@ -37,6 +37,8 @@ pub struct TraderAgent {
     running: AtomicBool,
     active: AtomicBool,
     action_count: AtomicU64,
+    /// Tracks the last consumed permit timestamp to prevent duplicate trades
+    last_permit_timestamp: tokio::sync::RwLock<Option<String>>,
 }
 
 impl TraderAgent {
@@ -47,7 +49,13 @@ impl TraderAgent {
             running: AtomicBool::new(false),
             active: AtomicBool::new(false),
             action_count: AtomicU64::new(0),
+            last_permit_timestamp: tokio::sync::RwLock::new(None),
         }
+    }
+
+    /// Get the number of trades executed
+    pub fn trade_count(&self) -> u64 {
+        self.action_count.load(Ordering::SeqCst)
     }
 }
 
@@ -82,6 +90,21 @@ impl Agent for TraderAgent {
                 .await?;
             
             if let Some(exec_permit) = permit {
+                // Idempotency check: skip if we already consumed this permit
+                {
+                    let last = self.last_permit_timestamp.read().await;
+                    if last.as_deref() == Some(&exec_permit.timestamp) {
+                        debug!("Trader: Duplicate permit detected ({}), skipping.", exec_permit.timestamp);
+                        continue;
+                    }
+                }
+                
+                // Record this permit as consumed
+                {
+                    let mut last = self.last_permit_timestamp.write().await;
+                    *last = Some(exec_permit.timestamp.clone());
+                }
+                
                 self.active.store(true, Ordering::SeqCst);
                 
                 info!(
@@ -101,11 +124,44 @@ impl Agent for TraderAgent {
                         );
                         
                         // Deposit trade record for audit trail
-                        board.deposit(PheromoneType::TradeExecuted, record).await?;
+                        board.deposit(PheromoneType::TradeExecuted, record.clone()).await?;
                         self.action_count.fetch_add(1, Ordering::SeqCst);
+                        
+                        // Log to persistent trade history
+                        let log_entry = TradeLogEntry {
+                            id: uuid::Uuid::new_v4().to_string(),
+                            timestamp: chrono::Utc::now().to_rfc3339(),
+                            action: record.action.clone(),
+                            symbol: if record.stocks_delta.abs() > 0.01 {
+                                self.config.portfolio.stocks_symbol.clone()
+                            } else {
+                                self.config.portfolio.bonds_symbol.clone()
+                            },
+                            amount: record.stocks_delta.abs(),
+                            price: record.stocks_before / 100.0, // approximate per-share
+                            portfolio_value: record.stocks_after + record.bonds_after,
+                            drift_before: exec_permit.drift_analysis.drift_pct,
+                            drift_after: 0.0, // Will improve when multi-asset is connected
+                        };
+                        let _ = board.log_trade(&log_entry).await;
+                        
+                        let _ = board.set_agent_metrics(&AgentMetrics {
+                            name: "Trader".to_string(),
+                            is_active: true,
+                            action_count: self.action_count.load(Ordering::SeqCst),
+                            last_action: format!("Executed: {}", record.action),
+                            last_action_time: Some(chrono::Utc::now().to_rfc3339()),
+                        }).await;
                     }
                     Err(e) => {
                         tracing::error!("Trader: Failed to execute trade: {}", e);
+                        let _ = board.set_agent_metrics(&AgentMetrics {
+                            name: "Trader".to_string(),
+                            is_active: false,
+                            action_count: self.action_count.load(Ordering::SeqCst),
+                            last_action: format!("Error: {}", e),
+                            last_action_time: Some(chrono::Utc::now().to_rfc3339()),
+                        }).await;
                     }
                 }
                 

@@ -12,6 +12,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
 
+use crate::core::Config;
+
 /// A time-decaying signal used for indirect agent coordination
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Pheromone {
@@ -115,7 +117,7 @@ impl<T> PheromonePayload<T> {
 }
 
 /// Standard pheromone types used in DriftGuard
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PheromoneType {
     /// Deposited by Sensor when fresh market data is available
     PriceFreshness,
@@ -131,6 +133,14 @@ pub enum PheromoneType {
 }
 
 impl PheromoneType {
+    /// All pheromone types for iteration
+    pub const ALL: [PheromoneType; 4] = [
+        PheromoneType::PriceFreshness,
+        PheromoneType::RebalanceOpportunity,
+        PheromoneType::ExecutionPermit,
+        PheromoneType::TradeExecuted,
+    ];
+
     /// Get the Redis key for this pheromone type
     pub fn key(&self) -> &'static str {
         match self {
@@ -148,6 +158,26 @@ impl PheromoneType {
             Self::RebalanceOpportunity => "Rebalance Opportunity",
             Self::ExecutionPermit => "Execution Permit",
             Self::TradeExecuted => "Trade Executed",
+        }
+    }
+
+    /// Get decay rate from config (centralized — single source of truth)
+    pub fn decay_rate(&self, config: &Config) -> f64 {
+        match self {
+            Self::PriceFreshness => config.pheromones.price_freshness_decay,
+            Self::RebalanceOpportunity => config.pheromones.rebalance_opportunity_decay,
+            Self::ExecutionPermit => config.pheromones.execution_permit_decay,
+            Self::TradeExecuted => config.pheromones.trade_executed_decay,
+        }
+    }
+
+    /// Get activation threshold from config (centralized — single source of truth)
+    pub fn threshold(&self, config: &Config) -> f64 {
+        match self {
+            Self::PriceFreshness => config.thresholds.price_freshness,
+            Self::RebalanceOpportunity => config.thresholds.rebalance_opportunity,
+            Self::ExecutionPermit => config.thresholds.execution_permit,
+            Self::TradeExecuted => config.thresholds.trade_executed,
         }
     }
 }

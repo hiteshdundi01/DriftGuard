@@ -19,11 +19,29 @@ execution_permit = 0.5
 trade_executed = 0.3
 
 [portfolio]
-# Default target allocation (percentages must sum to 100)
-stocks_symbol = "SPY"
-bonds_symbol = "BND"
-default_stocks_pct = 60
-default_bonds_pct = 40
+# Default target allocation — multi-asset support
+# Asset definitions: each entry has symbol and target percentage
+# Percentages must sum to 100
+
+[[portfolio.assets]]
+symbol = "SPY"
+name = "S&P 500 ETF"
+target_pct = 60
+
+[[portfolio.assets]]
+symbol = "BND"
+name = "Total Bond ETF"
+target_pct = 25
+
+[[portfolio.assets]]
+symbol = "GLD"
+name = "Gold ETF"
+target_pct = 10
+
+[[portfolio.assets]]
+symbol = "VNQ"
+name = "Real Estate ETF"
+target_pct = 5
 
 # Drift threshold - trigger rebalance if allocation deviates by this %
 drift_threshold = 5.0
@@ -31,16 +49,27 @@ drift_threshold = 5.0
 # Initial simulated portfolio balance
 initial_balance = 100000.0
 
+# Legacy 2-asset fallback (used if [[portfolio.assets]] is empty)
+stocks_symbol = "SPY"
+bonds_symbol = "BND"
+default_stocks_pct = 60
+default_bonds_pct = 40
+
 [market]
 # Polling interval in milliseconds (respect API rate limits)
-# Alpha Vantage free tier: 25 requests/day = ~1 request per 58 minutes
-# For demo, we'll cache and simulate between real fetches
 poll_interval_ms = 5000
 
 # VIX threshold - halt trading if volatility exceeds this
 vix_high_threshold = 25.0
 vix_low_threshold = 15.0
 
+# VIX data source: "simulation" or "cboe"
+vix_source = "simulation"
+
 [agent]
 # Agent loop sleep duration in milliseconds
 sniff_interval_ms = 500
+
+[trade_log]
+# Maximum number of trades to keep in history (FIFO)
+max_entries = 500

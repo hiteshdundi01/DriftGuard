@@ -30,7 +30,7 @@ async fn main() -> Result<()> {
     dotenv::dotenv().ok();
     
     // Initialize logging
-    let subscriber = FmtSubscriber::builder()
+    FmtSubscriber::builder()
         .with_max_level(Level::DEBUG)
         .with_target(true)
         .with_thread_ids(false)
@@ -139,11 +139,20 @@ async fn main() -> Result<()> {
     
     info!("🛑 Shutting down swarm...");
     
-    // The agents will stop when their tasks are dropped
-    drop(sensor_handle);
-    drop(analyst_handle);
-    drop(guardian_handle);
-    drop(trader_handle);
+    // Signal all agents to stop gracefully
+    sensor.stop();
+    analyst.stop();
+    guardian.stop();
+    trader.stop();
+    
+    // Await agent handles with a timeout for graceful shutdown
+    let shutdown_timeout = tokio::time::Duration::from_secs(5);
+    let _ = tokio::time::timeout(shutdown_timeout, async {
+        let _ = sensor_handle.await;
+        let _ = analyst_handle.await;
+        let _ = guardian_handle.await;
+        let _ = trader_handle.await;
+    }).await;
     
     info!("👋 DriftGuard stopped");
     

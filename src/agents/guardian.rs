@@ -14,6 +14,7 @@ use tracing::{debug, error, info, warn};
 
 use crate::agents::analyst::DriftAnalysis;
 use crate::agents::Agent;
+use crate::core::blackboard::AgentMetrics;
 use crate::core::physics::PheromoneType;
 use crate::core::{Blackboard, Config};
 use crate::market::MarketDataProvider;
@@ -46,6 +47,11 @@ impl GuardianAgent {
             active: AtomicBool::new(false),
             action_count: AtomicU64::new(0),
         }
+    }
+
+    /// Get the number of permits issued
+    pub fn action_count(&self) -> u64 {
+        self.action_count.load(Ordering::SeqCst)
     }
 }
 
@@ -117,6 +123,14 @@ impl Agent for GuardianAgent {
                             
                             board.deposit(PheromoneType::ExecutionPermit, permit).await?;
                             self.action_count.fetch_add(1, Ordering::SeqCst);
+                            
+                            let _ = board.set_agent_metrics(&AgentMetrics {
+                                name: "Guardian".to_string(),
+                                is_active: true,
+                                action_count: self.action_count.load(Ordering::SeqCst),
+                                last_action: format!("Permit issued (VIX {:.1})", vix),
+                                last_action_time: Some(chrono::Utc::now().to_rfc3339()),
+                            }).await;
                         } else {
                             // High volatility - HALT the chain
                             warn!(
@@ -124,13 +138,25 @@ impl Agent for GuardianAgent {
                                 vix,
                                 self.config.market.vix_high_threshold
                             );
-                            // Not depositing ExecutionPermit = Trader will never activate
-                            // This is the "circuit breaker" behavior
+                            
+                            let _ = board.set_agent_metrics(&AgentMetrics {
+                                name: "Guardian".to_string(),
+                                is_active: true,
+                                action_count: self.action_count.load(Ordering::SeqCst),
+                                last_action: format!("BLOCKED (VIX {:.1})", vix),
+                                last_action_time: Some(chrono::Utc::now().to_rfc3339()),
+                            }).await;
                         }
                     }
                     Err(e) => {
                         error!("Guardian: Failed to fetch VIX: {}. Halting for safety.", e);
-                        // When uncertain, don't trade - antifragile behavior
+                        let _ = board.set_agent_metrics(&AgentMetrics {
+                            name: "Guardian".to_string(),
+                            is_active: false,
+                            action_count: self.action_count.load(Ordering::SeqCst),
+                            last_action: format!("VIX error: {}", e),
+                            last_action_time: Some(chrono::Utc::now().to_rfc3339()),
+                        }).await;
                     }
                 }
                 

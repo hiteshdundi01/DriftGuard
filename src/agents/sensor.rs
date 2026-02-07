@@ -12,6 +12,7 @@ use tokio::time::{interval, Duration};
 use tracing::{debug, error, info, warn};
 
 use crate::agents::Agent;
+use crate::core::blackboard::AgentMetrics;
 use crate::core::physics::PheromoneType;
 use crate::core::{Blackboard, Config};
 use crate::market::MarketDataProvider;
@@ -45,6 +46,11 @@ impl SensorAgent {
             active: AtomicBool::new(false),
             action_count: AtomicU64::new(0),
         }
+    }
+
+    /// Get the number of data ingestions performed
+    pub fn action_count(&self) -> u64 {
+        self.action_count.load(Ordering::SeqCst)
     }
 }
 
@@ -80,11 +86,25 @@ impl Agent for SensorAgent {
                 Ok(_) => {
                     self.action_count.fetch_add(1, Ordering::SeqCst);
                     debug!("Sensor: Successfully deposited market data");
+                    // Publish metrics
+                    let _ = board.set_agent_metrics(&AgentMetrics {
+                        name: "Sensor".to_string(),
+                        is_active: true,
+                        action_count: self.action_count.load(Ordering::SeqCst),
+                        last_action: "Deposited market data".to_string(),
+                        last_action_time: Some(chrono::Utc::now().to_rfc3339()),
+                    }).await;
                 }
                 Err(e) => {
                     error!("Sensor: Failed to fetch market data: {}", e);
-                    // Don't deposit anything - pheromone will decay naturally
-                    // This is the "antifragile" behavior!
+                    // Publish dormant metrics
+                    let _ = board.set_agent_metrics(&AgentMetrics {
+                        name: "Sensor".to_string(),
+                        is_active: false,
+                        action_count: self.action_count.load(Ordering::SeqCst),
+                        last_action: format!("Error: {}", e),
+                        last_action_time: Some(chrono::Utc::now().to_rfc3339()),
+                    }).await;
                 }
             }
             

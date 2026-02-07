@@ -4,6 +4,29 @@ import type { PheromoneStatus } from '../hooks/useWebSocket'
 
 interface Props {
     pheromones: PheromoneStatus[]
+    history: { name: string; readings: number[] }[]
+}
+
+function Sparkline({ data, color, active }: { data: number[]; color: string; active: boolean }) {
+    if (data.length < 2) return null
+    const width = 80
+    const height = 24
+    const max = 1
+    const points = data.map((v, i) => {
+        const x = (i / (data.length - 1)) * width
+        const y = height - (v / max) * height
+        return `${x},${y}`
+    }).join(' ')
+    return (
+        <svg width={width} height={height} className="opacity-60">
+            <polyline
+                fill="none"
+                stroke={active ? color : '#52525b'}
+                strokeWidth="1.5"
+                points={points}
+            />
+        </svg>
+    )
 }
 
 const pheromoneConfig: Record<string, { color: string; icon: string; description: string }> = {
@@ -29,7 +52,7 @@ const pheromoneConfig: Record<string, { color: string; icon: string; description
     },
 }
 
-export function PheromoneMonitor({ pheromones }: Props) {
+export function PheromoneMonitor({ pheromones, history }: Props) {
     return (
         <div className="bg-swarm-card rounded-xl border border-swarm-border p-6">
             <div className="flex items-center gap-3 mb-6">
@@ -55,6 +78,11 @@ export function PheromoneMonitor({ pheromones }: Props) {
                                         <span className="text-sm font-medium text-zinc-300">{p.name}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
+                                        <Sparkline
+                                            data={history.find(h => h.name === p.name)?.readings || []}
+                                            color={config.color}
+                                            active={p.is_active}
+                                        />
                                         {p.is_active ? (
                                             <Zap className="w-4 h-4 text-drift-400" />
                                         ) : (

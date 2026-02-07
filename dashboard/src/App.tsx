@@ -11,6 +11,7 @@ import { AgentStatus } from './components/AgentStatus'
 import { PortfolioConfig } from './components/PortfolioConfig'
 import { PortfolioBalance } from './components/PortfolioBalance'
 import { EventLog } from './components/EventLog'
+import { TradeHistory } from './components/TradeHistory'
 
 function App() {
     const {
@@ -18,6 +19,9 @@ function App() {
         portfolio,
         connected,
         events,
+        agentMetrics,
+        pheromoneHistory,
+        tradeHistory,
         setAllocation,
         reset,
         reconnect
@@ -55,8 +59,8 @@ function App() {
 
                         {/* Connection status */}
                         <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${connected
-                                ? 'bg-drift-900/30 text-drift-400'
-                                : 'bg-red-900/30 text-red-400'
+                            ? 'bg-drift-900/30 text-drift-400'
+                            : 'bg-red-900/30 text-red-400'
                             }`}>
                             {connected ? (
                                 <>
@@ -86,7 +90,7 @@ function App() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                     {/* Pheromone intensities */}
                     <div className="lg:col-span-2">
-                        <PheromoneMonitor pheromones={pheromones} />
+                        <PheromoneMonitor pheromones={pheromones} history={pheromoneHistory} />
                     </div>
 
                     {/* Portfolio balance */}
@@ -99,7 +103,7 @@ function App() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Agent status */}
                     <div>
-                        <AgentStatus pheromones={pheromones} />
+                        <AgentStatus pheromones={pheromones} agentMetrics={agentMetrics} />
                     </div>
 
                     {/* Portfolio config */}
@@ -115,6 +119,11 @@ function App() {
                     {/* Event log */}
                     <div>
                         <EventLog events={events} />
+                    </div>
+
+                    {/* Trade history */}
+                    <div className="mt-6">
+                        <TradeHistory trades={tradeHistory} />
                     </div>
                 </div>
 

@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion'
 import { Eye, Brain, Shield, Banknote } from 'lucide-react'
-import type { PheromoneStatus } from '../hooks/useWebSocket'
+import type { PheromoneStatus, AgentMetric } from '../hooks/useWebSocket'
 
 interface Props {
     pheromones: PheromoneStatus[]
+    agentMetrics: AgentMetric[]
 }
 
 interface AgentInfo {
@@ -45,12 +46,18 @@ const agents: AgentInfo[] = [
     },
 ]
 
-export function AgentStatus({ pheromones }: Props) {
-    const isActive = (listenTo: string) => {
-        if (listenTo === 'External API') return true // Sensor always listens
+export function AgentStatus({ pheromones, agentMetrics }: Props) {
+    const isActive = (name: string, listenTo: string) => {
+        // Prefer server-driven metrics if available
+        const metric = agentMetrics.find(m => m.name === name)
+        if (metric) return metric.is_active
+        // Fallback to pheromone-based detection
+        if (listenTo === 'External API') return true
         const pheromone = pheromones.find(p => p.name === listenTo)
         return pheromone?.is_active ?? false
     }
+
+    const getMetric = (name: string) => agentMetrics.find(m => m.name === name)
 
     return (
         <div className="bg-swarm-card rounded-xl border border-swarm-border p-6">
@@ -60,7 +67,8 @@ export function AgentStatus({ pheromones }: Props) {
 
             <div className="space-y-3">
                 {agents.map((agent, index) => {
-                    const active = isActive(agent.listenTo)
+                    const active = isActive(agent.name, agent.listenTo)
+                    const metric = getMetric(agent.name)
 
                     return (
                         <motion.div
@@ -69,8 +77,8 @@ export function AgentStatus({ pheromones }: Props) {
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: index * 0.1 }}
                             className={`flex items-center gap-4 p-4 rounded-lg border transition-all duration-300 ${active
-                                    ? 'bg-drift-900/30 border-drift-700/50'
-                                    : 'bg-zinc-900/30 border-zinc-800/50'
+                                ? 'bg-drift-900/30 border-drift-700/50'
+                                : 'bg-zinc-900/30 border-zinc-800/50'
                                 }`}
                         >
                             {/* Agent icon */}
@@ -92,8 +100,15 @@ export function AgentStatus({ pheromones }: Props) {
                                             ACTIVE
                                         </motion.span>
                                     )}
+                                    {metric && metric.action_count > 0 && (
+                                        <span className="px-2 py-0.5 text-xs bg-zinc-800 text-zinc-400 rounded-full">
+                                            ×{metric.action_count}
+                                        </span>
+                                    )}
                                 </div>
-                                <p className="text-sm text-zinc-500 truncate">{agent.description}</p>
+                                <p className="text-sm text-zinc-500 truncate">
+                                    {metric?.last_action || agent.description}
+                                </p>
                             </div>
 
                             {/* Status indicator */}

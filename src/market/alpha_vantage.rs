@@ -216,14 +216,11 @@ struct GlobalQuote {
     price: String,
 }
 
-/// Simple pseudo-random variation using time
+/// Random variation using the `rand` crate for proper distribution
 fn rand_variation() -> f64 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .subsec_nanos();
-    (nanos as f64 / u32::MAX as f64)
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+    rng.gen::<f64>()
 }
 
 #[cfg(test)]

@@ -13,7 +13,7 @@ use tracing::{debug, info, warn};
 
 use crate::agents::sensor::MarketSnapshot;
 use crate::agents::Agent;
-use crate::core::blackboard::PortfolioState;
+use crate::core::blackboard::{AgentMetrics, PortfolioState};
 use crate::core::physics::PheromoneType;
 use crate::core::{Blackboard, Config};
 
@@ -46,6 +46,11 @@ impl AnalystAgent {
             active: AtomicBool::new(false),
             action_count: AtomicU64::new(0),
         }
+    }
+
+    /// Get the number of drift analyses performed
+    pub fn action_count(&self) -> u64 {
+        self.action_count.load(Ordering::SeqCst)
     }
 }
 
@@ -125,8 +130,23 @@ impl Agent for AnalystAgent {
                     // Deposit opportunity for Guardian
                     board.deposit(PheromoneType::RebalanceOpportunity, analysis).await?;
                     self.action_count.fetch_add(1, Ordering::SeqCst);
+                    
+                    let _ = board.set_agent_metrics(&AgentMetrics {
+                        name: "Analyst".to_string(),
+                        is_active: true,
+                        action_count: self.action_count.load(Ordering::SeqCst),
+                        last_action: format!("Drift {:.1}% — {}", drift, action),
+                        last_action_time: Some(chrono::Utc::now().to_rfc3339()),
+                    }).await;
                 } else {
                     debug!("Analyst: Drift {:.1}% within threshold, no action needed", drift);
+                    let _ = board.set_agent_metrics(&AgentMetrics {
+                        name: "Analyst".to_string(),
+                        is_active: true,
+                        action_count: self.action_count.load(Ordering::SeqCst),
+                        last_action: format!("Drift {:.1}% within threshold", drift),
+                        last_action_time: Some(chrono::Utc::now().to_rfc3339()),
+                    }).await;
                 }
                 
                 self.active.store(false, Ordering::SeqCst);
